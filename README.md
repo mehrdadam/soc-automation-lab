@@ -11,6 +11,8 @@ A collection of practical projects, technical documentation, and implementation 
 
 **Technologies:** Splunk SOAR · Python · REST API · AI Models · Splunk SPL
 
+
+
 ---
 
 <a id="فارسی"></a>
