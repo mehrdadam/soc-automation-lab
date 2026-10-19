@@ -11,6 +11,8 @@
 
 This project documents the architecture of a Splunk SOAR workflow that turns reports from The DFIR Report into candidate Splunk detection queries. The workflow monitors the [The DFIR Report](https://thedfirreport.com/) RSS feed, identifies new reports, and asks an AI model to generate suggested Splunk queries for each report. The results are stored in a Custom List for analysts to review and follow up on.
 
+![AI Generated SPL Queries](./images/ai_spl.png)
+
 The main goal is to shorten the gap between reading a threat report and preparing an initial draft for detection engineering. However, model-generated queries should be treated as initial suggestions, not as validated detection rules or queries ready for production use.
 
 **This repository contains project documentation only. It does not include Python source code or an installable Splunk SOAR package.** It documents the architecture, configuration, data structures, and implementation details.
