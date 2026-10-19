@@ -1,12 +1,7 @@
-تبدیل گزارش‌های DFIR به کوئری‌های Splunk
-
-مهندسی تشخیص تهدید با کمک هوش مصنوعی و Splunk SOAR
-
-[English](./README.md) | [فارسی](./README.fa.md)
+# تبدیل گزارش‌های DFIR به کوئری‌های Splunk
 
 
-
-# Splunk SOAR — از گزارش‌های DFIR تا کوئری‌های تشخیصی Splunk
+# مهندسی تشخیص تهدید با کمک هوش مصنوعی و Splunk SOAR
 
 [English](./README.md) | [فارسی](./README.fa.md)
 
