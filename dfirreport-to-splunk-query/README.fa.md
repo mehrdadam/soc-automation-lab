@@ -66,7 +66,7 @@ parse_ai_response
    نمایش نتیجه برای تحلیلگر
 ```
 
-![نمایی از playbook در Splunk SOAR](./images/sc01.png)
+![نمایی از playbook در Splunk SOAR](./images/Sc01.png)
 
 در این جریان، `demux_posts` فهرست گزارش‌ها را به آیتم‌های جداگانه تبدیل می‌کند تا مراحل بعدی برای هر گزارش اجرا شوند. تابع `build_prompt` بدنه درخواست را می‌سازد و بلاک HTTP آن را به endpoint مدل ارسال می‌کند. سپس `parse_ai_response` پاسخ را پردازش می‌کند و `update_seen_row` اطلاعات گزارش و کوئری‌های پیشنهادی را در Custom List ثبت می‌کند.
 
