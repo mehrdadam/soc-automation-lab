@@ -19,6 +19,24 @@
 
 
 ![نمایی از playbook در Splunk SOAR](./images/Sc01.png)
+
+اگر قرار باشد تعیین کنیم که هنگام اجرای Playbook برای بار اول تا چند پست آخر بررسی شود، می‌توان در ابتدا یک بلاک از نوع Format ساخت و عدد مورد نظر را در آن تعیین کرد. بلاک بعدی یک Custom Function (که از این به بعد CF گفته میشود) با نام dfirreport_get_last_seen خواهد بود که آخرین url و title را به بلاک بعدی ارسال می‌کند. بلاک بعدی از نوع CF با نام dfirreport_check_dfirreport سایت dfirreport را جهت بررسی آخرین پست‌ها پیشمایش و اگر پست جدیدی وجود داشته باشد url, Title و تعداد پست‌های جدید را در خروجی ارسال می‌کند. سپس یک بلاک از نوع Decision اگر تعداد پست‌ها بیش از 0 باشد، خروجی بلاک قبل را به بلاک بعدی از نوع CF با نام  Demux_posts ارسال می‌کند. این بلاک برای آماده کردن تعداد بیش از 1 پست جهت ارسال به AI طراحی شده تا درخواست‌ها را یک به یک (نه همزمان) ارسال و نتیجه هر کدام را بطور جداگانه parse کند. بلاک بعدی از نوع CF با نام dfirreport_build_prompt جهت قراردادن لینک و تیتر در prompt از پیش نوشته شده است. متن Prompt چنین خواهد بود:
+
+```
+    prompt_text = (
+    f"Threat report: {title}\n"
+    f"URL: {url}\n\n"
+    "IMPORTANT: Do NOT use any tools, do NOT run commands or fetch URLs. "
+    "Answer directly from your own knowledge.\n"
+    "Generate 3 Splunk detection queries for this threat. "
+    'Return ONLY valid JSON, no explanation: '
+    '{"splunk_queries": [{"name": "short name", "query": "index=* ..."}]}'
+  )
+```
+
+پس از آن، prompt آماده شده با استفاده از action block از نوع http (که با AI API ارتباط دارد) به AI ارسال می‌شود و جواب آن از طریق بلاک بعدی از نوع CF با نام dfirreport_parse_ai_response بررسی و کوئری‌های درخواست داده شده استخراج خواهند شد. سپس بلاک بعدی از نوع CF و با نام  dfirreport_update_seen_row مقادیر title, url, queries در Custom List ذخیره می‌شود.
+از این بخش به بعد را می‌توان با استفاده از action block از نوع SMTP، کوئری‌ها را ایمیل و یا با استفاده از بلاک از نوع prompt، آن را به متخصص موردنظر اطلاع داد.
+
 ## شرحی از Custom Functionها
 
 <div dir="rtl" align="right">
@@ -60,7 +78,7 @@
 ### ۱. پیش‌نیازها
 <div dir="rtl" align="right">
   
-- Splunk SOAR با دسترسی لازم برای ساخت Custom Function و Playbook
+- ابزار Splunk SOAR با دسترسی لازم برای ساخت Custom Function و Playbook
 - یک HTTP asset برای ارتباط با endpoint سازگار با OpenAI API
 - دسترسی شبکه به endpoint مدل و API key معتبر
 - دسترسی به فید RSS سایت The DFIR Report
@@ -69,7 +87,7 @@
 
 ### ۲. ساخت Custom List
 
-در SOAR یک Custom List با نام `dfirreport_seen_posts` بساز و ستون‌های زیر را تعریف کن:
+در SOAR میبایست یک Custom List با نام `dfirreport_seen_posts` با ستون‌های زیر ساخته شود:
 
 - `url`
 - `title`
@@ -77,50 +95,20 @@
 
 ردیف اول باید نام همین ستون‌ها را داشته باشد.
 
-### ۳. پیکربندی Custom Functionها
 
-توابع این گردش‌کار مسئول دریافت RSS، جداسازی گزارش‌ها، ساخت درخواست مدل، پردازش پاسخ و به‌روزرسانی Custom List هستند.
+### ۳. ساخت HTTP asset
 
-برای بازسازی پروژه، توابع را در SOAR ایجاد کن و پارامترهای ورودی و خروجی آن‌ها را مطابق جدول بالا تنظیم کن. سورس کد این توابع در این مخزن موجود نیست.
+یک HTTP asset جهت ارتباط با AI API
 
-نکته‌های مربوط به پیاده‌سازی:
-
-- نوع خروجی تعریف‌شده برای هر تابع باید با ساختار داده‌ای که برمی‌گرداند مطابقت داشته باشد. در این پیاده‌سازی از `item` و `list` استفاده شده است.
-- توابع کمکی داخل بدنه تابع اصلی تعریف می‌شوند.
-- برای نوشتن در Custom List، این پیاده‌سازی از REST endpoint با نام `decided_list` استفاده می‌کند؛ نه از `phantom.custom_list_add`.
-
-### ۴. ساخت HTTP asset
-
-یک HTTP asset ایجاد کن که به نمونه 9router دسترسی داشته باشد.
-
-- **Base URL:** آدرس نمونه 9router، برای مثال `http://<host>:20128`
+- **Base URL:** آدرس AI API Base
 - **Headers:**
   - `Authorization: Bearer <api-key>`
   - `Content-Type: application/json`
 
-بلاک HTTP در Playbook درخواست زیر را ارسال می‌کند:
 
-`POST /v1/chat/completions`
+### ۴. زمان‌بندی
 
-بدنه درخواست از خروجی `body` تابع `build_prompt` گرفته می‌شود. آدرس و روش احراز هویت را با تنظیمات واقعی endpoint خودت تطبیق بده.
-
-### ۵. اتصال بلاک‌های Playbook
-
-بلاک‌ها را مطابق دیاگرام به یکدیگر متصل کن. دیتاپت‌های اصلی در پیاده‌سازی عبارت‌اند از:
-
-- `build_prompt.title` ← `demux_posts:custom_function_result.data.*.title`
-- `build_prompt.url` ← `demux_posts:custom_function_result.data.*.url`
-- بدنه HTTP ← `build_prompt:custom_function_result.data.body`
-- `parse_ai_response.ai_response` ← `post_data_N:action_result.data.*.parsed_response_body`
-- ورودی‌های `parse_ai_response.title` و `parse_ai_response.url` ← خروجی‌های متناظر `demux_posts`
-- `update_seen_row.splunk_queries` ← `parse_ai_response:custom_function_result.data.splunk_queries`
-- ورودی بلاک Prompt ← `parse_ai_response:custom_function_result.data.formatted_output`
-
-`post_data_N` باید با نام واقعی بلاک HTTP در Playbook جایگزین شود.
-
-### ۶. زمان‌بندی
-
-برای اجرای خودکار، یک Scheduler به Playbook اضافه کن. اجرای روزانه یکی از گزینه‌هاست؛ فاصله اجرا را متناسب با نیاز عملیاتی و محدودیت‌های محیط انتخاب کن.
+برای اجرای خودکار، می‌توان از App یا ابزار Scheduler یا Timer استفاده کرد.
 
 ## نکته‌های فنی و درس‌های آموخته‌شده
 
